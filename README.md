@@ -16,7 +16,10 @@
 
 ---
 
+```markdown
 ## 디렉토리 구조
+
+```
 
 src/
 ├── App.tsx                  # 라우팅 구성
@@ -33,6 +36,9 @@ src/
 ├── services/                # API 통신 함수
 ├── stores/                  # Zustand 상태관리
 ├── types/                   # 타입 정의
+
+```
+```
 
 ---
 
