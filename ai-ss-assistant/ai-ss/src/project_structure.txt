@@ -1,0 +1,41 @@
+.
+├── App.css
+├── App.test.tsx
+├── App.tsx
+├── api
+├── assets
+├── components
+│   ├── TodoCard.tsx
+│   ├── common
+│   ├── dashboard
+│   ├── routine
+│   └── ui
+├── hooks
+│   └── useDashboardData.ts
+├── index.css
+├── index.tsx
+├── lib
+│   ├── api.ts
+│   └── routineService.ts
+├── logo.svg
+├── pages
+│   ├── AddRoutinePage.tsx
+│   ├── Dashboard.tsx
+│   ├── DashboardPage.tsx
+│   ├── InitPage.tsx
+│   ├── SchedulePreviewPage.tsx
+│   ├── ScheduleSuggestionPage.tsx
+│   └── SetupPage.tsx
+├── project_structure.txt
+├── react-app-env.d.ts
+├── reportWebVitals.ts
+├── setupTests.ts
+├── store
+│   └── userStore.ts
+├── styles
+├── types
+│   ├── routine.ts
+│   └── user.ts
+└── utils
+
+15 directories, 24 files
