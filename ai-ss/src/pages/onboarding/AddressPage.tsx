@@ -1,19 +1,37 @@
 // src/pages/onboarding/AddressPage.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { registerAddress } from "@/entities/user/api";
 import { searchAddressKakao, type KakaoAddr } from "@/lib/kakaoLocal";
+import { useAuthStore } from "@/entities/user/model/authStore";
+import { getAccessToken } from "@/lib/authService"; // 추가
+
 
 export default function AddressPage() {
     const navigate = useNavigate();
+    const accessToken = useAuthStore((s) => s.accessToken);
 
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<KakaoAddr[]>([]);
     const [roadAddressName, setRoadAddressName] = useState("");
     const [placeDetailAddress, setPlaceDetailAddress] = useState("");
     const [latitude, setLatitude] = useState<string>("");    // 입력은 문자열, 보낼 때 number 변환
-    const [longitude, setLongitude] = useState<string>(""); // 스펙 표기 유지
+    const [longitude, setLongitude] = useState<string>("");  // 스펙 표기 유지
+    const [searching, setSearching] = useState(false);
+
+    // 로그인 가드: 비로그인 접근 차단
+    // useEffect(() => {
+    //     if (!accessToken && !localStorage.getItem("accessToken")) {
+    //         navigate("/login");
+    //     }
+    // }, [accessToken, navigate]);
+
+    useEffect(() => {
+        if (!getAccessToken()) {
+            navigate("/login", { replace: true });
+        }
+    }, [navigate]);
 
     const m = useMutation({
         mutationFn: registerAddress,
@@ -22,19 +40,33 @@ export default function AddressPage() {
             navigate("/survey");
         },
         onError: (err: unknown) => {
-            const msg = err instanceof Error ? err.message : "주소 등록에 실패했습니다.";
+            // AxiosError 안전 처리
+            const msg =
+                typeof err === "object" && err !== null && "response" in err
+                    ? // @ts-expect-error (runtime safe guard)
+                    err?.response?.data?.message ?? "주소 등록에 실패했습니다."
+                    : err instanceof Error
+                        ? err.message
+                        : "주소 등록에 실패했습니다.";
             alert(msg);
         },
     });
 
     const handleSearch = async () => {
+        if (!query.trim()) {
+            alert("검색어를 입력하세요.");
+            return;
+        }
         try {
-            const list = await searchAddressKakao(query);
+            setSearching(true);
+            const list = await searchAddressKakao(query.trim());
             setResults(list);
             if (list.length === 0) alert("검색 결과가 없습니다.");
         } catch (e) {
             alert("주소 검색에 실패했습니다.");
             console.error(e);
+        } finally {
+            setSearching(false);
         }
     };
 
@@ -53,7 +85,7 @@ export default function AddressPage() {
         }
         const lat = Number(latitude);
         const lon = Number(longitude);
-        if (Number.isNaN(lat) || Number.isNaN(lon)) {
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
             alert("위도/경도가 올바르지 않습니다.");
             return;
         }
@@ -63,6 +95,10 @@ export default function AddressPage() {
             latitude: lat,
             longitude: lon, // 스펙 유지
         });
+    };
+
+    const onKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
+        if (e.key === "Enter") handleSearch();
     };
 
     return (
@@ -78,14 +114,15 @@ export default function AddressPage() {
                         placeholder="예: 서울 마포구 상암동 000"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
+                        onKeyDown={onKeyDown}
                         className="flex-1 p-3 border rounded-xl"
                     />
                     <button
                         onClick={handleSearch}
-                        className="px-4 py-2 bg-gray-800 text-white rounded-xl"
-                        disabled={m.isPending}
+                        className="px-4 py-2 bg-gray-800 text-white rounded-xl disabled:opacity-50"
+                        disabled={m.isPending || searching}
                     >
-                        검색
+                        {searching ? "검색 중..." : "검색"}
                     </button>
                 </div>
 

@@ -1,7 +1,9 @@
 // pages/InitPage.tsx
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+//import { useAuthStore } from "@/entities/user/model/authStore";
+import { getAccessToken } from "@/lib/authService"; // ✅ 단일 소스
 
 type Preferences = {
     cleaningFrequency: string;
@@ -16,19 +18,33 @@ export default function InitPage() {
 
     const navigate = useNavigate();
 
+    // const accessToken = useAuthStore((s) => s.accessToken);
+    //
+    // // ✅ 토큰 가드: 비로그인 접근 차단
+    // useEffect(() => {
+    //     if (!accessToken && !localStorage.getItem("accessToken")) {
+    //         navigate("/login");
+    //     }
+    // }, [accessToken, navigate]);
+
+
+    // ✅ 토큰 가드: 비로그인 접근 차단 (단일 소스 사용)
+    useEffect(() => {
+        if (!getAccessToken()) {
+            navigate("/login", { replace: true });
+        }
+    }, [navigate]);
+
     const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const { name, value } = e.target;
-        setPreferences((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
+        setPreferences((prev) => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // 이후 preferences를 저장하거나 API 전송
+        // TODO: 스웨거 확정 시 온보딩 API 호출 추가
         console.log(preferences);
-        navigate("/setup"); // 예시로 다음 페이지로 이동
+        navigate("/setup"); // 다음 단계로 이동
     };
 
     return (

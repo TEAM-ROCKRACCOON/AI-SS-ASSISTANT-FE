@@ -1,5 +1,9 @@
-import React, { useMemo, useState } from "react";
+// src/pages/FeedbackPage.tsx
+import React, { useEffect, useMemo, useState } from "react";
 import { useWeeklyCounts, useSubmitFeedback } from "@/hooks/useFeedback";
+//import { useAuthStore } from "@/entities/user/model/authStore";
+import { getAccessToken } from "@/lib/authService"; // ✅
+import { useNavigate } from "react-router-dom";
 
 function startOfISOWeek(date = new Date()): Date {
     const d = new Date(date);
@@ -26,11 +30,25 @@ const DAYS: Array<"MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN"> = [
     "SUN",
 ];
 const DAY_LABEL: Record<(typeof DAYS)[number], string> = {
-    MON: "월", TUE: "화", WED: "수", THU: "목", FRI: "금", SAT: "토", SUN: "일",
+    MON: "월",
+    TUE: "화",
+    WED: "수",
+    THU: "목",
+    FRI: "금",
+    SAT: "토",
+    SUN: "일",
 };
 
 export default function FeedbackPage() {
     const [weekStartDate, setWeekStartDate] = useState(() => fmtISO(startOfISOWeek()));
+    //const accessToken = useAuthStore((s) => s.accessToken);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (!getAccessToken()) {
+            navigate("/login", { replace: true }); // 또는 window.location.href="/login"
+        }
+    }, [navigate]);
 
     const { data: counts, isLoading, isError } = useWeeklyCounts(weekStartDate);
     const submit = useSubmitFeedback();
@@ -45,7 +63,21 @@ export default function FeedbackPage() {
     const [comment, setComment] = useState("");
 
     const handleSubmit = () => {
-        submit.mutate({ weekStartDate, cleaningAmountScore, recommendedTimeScore, comment });
+        if (submit.isPending) return;
+        submit.mutate(
+            {
+                weekStartDate,
+                cleaningAmountScore,
+                recommendedTimeScore,
+                comment,
+            },
+            {
+                onSuccess: () => {
+                    alert("제출 완료!");
+                    setComment("");
+                },
+            }
+        );
     };
 
     return (
@@ -75,7 +107,7 @@ export default function FeedbackPage() {
                                 <li key={d} className="flex items-center gap-2">
                                     <span className="w-8 text-right text-sm text-gray-600">{DAY_LABEL[d]}</span>
                                     <div className="flex-1 h-3 bg-gray-200 rounded">
-                                        <div className="h-3 rounded" style={{ width: `${w}%` }} />
+                                        <div className="h-3 rounded bg-blue-500" style={{ width: `${w}%` }} />
                                     </div>
                                     <span className="w-6 text-right text-sm">{v}</span>
                                 </li>
@@ -94,7 +126,9 @@ export default function FeedbackPage() {
                         min={1}
                         max={5}
                         value={cleaningAmountScore}
-                        onChange={(e) => setAmount(Number(e.target.value))}
+                        onChange={(e) =>
+                            setAmount(Math.max(1, Math.min(5, Number(e.target.value) || 1)))
+                        }
                         className="mt-1 border rounded px-3 py-2 w-full"
                     />
                 </label>
@@ -105,7 +139,9 @@ export default function FeedbackPage() {
                         min={1}
                         max={5}
                         value={recommendedTimeScore}
-                        onChange={(e) => setTimeScore(Number(e.target.value))}
+                        onChange={(e) =>
+                            setTimeScore(Math.max(1, Math.min(5, Number(e.target.value) || 1)))
+                        }
                         className="mt-1 border rounded px-3 py-2 w-full"
                     />
                 </label>
@@ -124,14 +160,10 @@ export default function FeedbackPage() {
                     className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
                     disabled={submit.isPending}
                 >
-                    제출
+                    {submit.isPending ? "제출 중..." : "제출"}
                 </button>
-                {submit.isSuccess && (
-                    <p className="text-green-600 text-sm mt-2">제출 완료!</p>
-                )}
-                {submit.isError && (
-                    <p className="text-red-600 text-sm mt-2">제출 실패</p>
-                )}
+                {submit.isSuccess && <p className="text-green-600 text-sm mt-2">제출 완료!</p>}
+                {submit.isError && <p className="text-red-600 text-sm mt-2">제출 실패</p>}
             </section>
         </div>
     );

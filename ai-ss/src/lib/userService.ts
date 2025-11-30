@@ -1,38 +1,24 @@
-// src/lib/userService.ts
-import http from "@/shared/api/http";
+import { http } from "@/shared/api/http";
+import { setTokens } from "@/lib/authService";
 
-export type Profile = {
-    nickname: string;
-    email: string;
-    termsUrl: string;
+type LoginResponse = {
+    status: number;
+    message: string;
+    data: {
+        accessToken: string;
+        refreshToken?: string;
+        nickname?: string;
+        role?: string;
+    };
 };
 
-export async function getProfile(): Promise<Profile> {
-    const res = await http.get<{ status: number; message: string; data: Profile }>(
-        "/api/v1/users/profile"
+export async function loginWithAuthorizationCode(code: string, socialType: "GOOGLE") {
+    const res = await http.post(
+        "/api/v1/users/login",
+        { socialType },                         // body
+        { params: { authorizationCode: code } } // query param
     );
-    return res.data.data;
-}
-
-export async function updateProfile(payload: { nickname: string; email: string }) {
-    const res = await http.put<{ status: number; message: string }>(
-        "/api/v1/users/profile",
-        payload,
-        { headers: { "Content-Type": "application/json" } }
-    );
-    return res.data;
-}
-
-export async function logout() {
-    const res = await http.post<{ status: number; message: string }>(
-        "/api/v1/users/logout"
-    );
-    return res.data;
-}
-
-export async function withdraw() {
-    const res = await http.delete<{ status: number; message: string }>(
-        "/api/v1/users/withdraw"
-    );
+    const { accessToken, refreshToken } = res.data.data ?? {};
+    if (accessToken) setTokens(accessToken, refreshToken);
     return res.data;
 }

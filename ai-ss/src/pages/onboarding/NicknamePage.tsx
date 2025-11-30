@@ -1,31 +1,59 @@
 // src/pages/onboarding/NicknamePage.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { registerNickname } from "@/entities/user/api";
+import { useAuthStore } from "@/entities/user/model/authStore";
+import { getAccessToken } from "@/lib/authService"; // 추가
+
+type SimpleRes = { status: number; message: string };
+
 
 export default function NicknamePage() {
     const [nickname, setNickname] = useState("");
     const navigate = useNavigate();
+    const accessToken = useAuthStore((s) => s.accessToken);
 
-    const m = useMutation({
+    // 토큰 가드
+    // useEffect(() => {
+    //     if (!accessToken && !localStorage.getItem("accessToken")) {
+    //         navigate("/login");
+    //     }
+    // }, [accessToken, navigate]);
+
+    useEffect(() => {
+        if (!getAccessToken()) {
+            navigate("/login", { replace: true });
+        }
+    }, [navigate]);
+
+    const m = useMutation<SimpleRes, unknown, string>({
         mutationFn: registerNickname,
-        onSuccess: (_res) => {
-            // 201 이고 message만 내려옴 → 성공 처리 후 다음 단계
+        onSuccess: (res) => {
+            // 래퍼가 있어도/없어도 메시지 안전 처리
+            const msg = (res as any)?.message ?? "닉네임이 등록되었습니다.";
+            alert(msg);
             navigate("/address");
         },
         onError: (err: unknown) => {
-            const msg = err instanceof Error ? err.message : "닉네임 등록에 실패했습니다.";
+            const msg =
+                typeof err === "object" && err !== null && "response" in err
+                    // @ts-expect-error 런타임 방어
+                    ? err?.response?.data?.message ?? "닉네임 등록에 실패했습니다."
+                    : err instanceof Error
+                        ? err.message
+                        : "닉네임 등록에 실패했습니다.";
             alert(msg);
         },
     });
 
     const handleNext = () => {
-        if (!nickname.trim()) {
+        const v = nickname.trim();
+        if (!v) {
             alert("닉네임을 입력해주세요.");
             return;
         }
-        m.mutate(nickname.trim());
+        m.mutate(v);
     };
 
     return (

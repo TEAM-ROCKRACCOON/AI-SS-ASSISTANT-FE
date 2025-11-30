@@ -1,12 +1,27 @@
-// src/lib/time.ts
-/** "09:05" -> "9:05 AM", "00:10" -> "12:10 AM", "13:30" -> "1:30 PM" */
-export function toAmPm(hhmm: string): string {
-    const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
-    if (!m) throw new Error("Invalid HH:mm");
-    let h = Number(m[1]);
-    const mm = m[2];
-    const isAm = h < 12;
-    if (h === 0) h = 12;        // 00 -> 12 AM
-    else if (h > 12) h -= 12;   // 13~23 -> 1~11 PM
-    return `${h}:${mm} ${isAm ? "AM" : "PM"}`;
+/** baseDate 기준 주간 헤더 라벨 포맷 */
+export function formatDateLabel(base: Date) {
+    const m = base.toLocaleString("en-US", { month: "long" });
+    const d = base.getDate();
+    return `${m} ${d}`;
+}
+
+/** 주간 요일 라벨 (월~일) */
+export function getWeekDays(base: Date) {
+    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    return days;
+}
+
+/** HH:mm → HH:MM AM/PM 으로 변환 */
+export function toAmPm(time24: string): string {
+    // 허용: "09:30", "9:30", "21:15"
+    const match = time24.match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return time24;
+
+    let [_, hh, mm] = match;
+    let H = parseInt(hh, 10);
+
+    const isPM = H >= 12;
+    const h12 = H % 12 === 0 ? 12 : H % 12;
+
+    return `${String(h12).padStart(2, "0")}:${mm} ${isPM ? "PM" : "AM"}`;
 }

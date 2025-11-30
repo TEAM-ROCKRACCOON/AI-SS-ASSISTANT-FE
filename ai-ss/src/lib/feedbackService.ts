@@ -3,26 +3,16 @@ import http from "@/shared/api/http";
 
 export type WeekdayKey = "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
 export type Counts = Record<WeekdayKey, number>;
+type ApiResponse<T> = { status: number; message: string; data?: T };
+
+const EMPTY_COUNTS: Counts = { MON: 0, TUE: 0, WED: 0, THU: 0, FRI: 0, SAT: 0, SUN: 0 };
 
 export async function getWeeklyCounts(weekStartDate: string): Promise<Counts> {
-    const res = await http.get<{
-        status: number;
-        message: string;
-        data?: { counts?: Counts };
-    }>("/api/v1/feedback/counts", { params: { weekStartDate } });
-
-    // 방어적 기본값
-    return (
-        res.data?.data?.counts ?? {
-            MON: 0,
-            TUE: 0,
-            WED: 0,
-            THU: 0,
-            FRI: 0,
-            SAT: 0,
-            SUN: 0,
-        }
+    const res = await http.get<ApiResponse<{ counts?: Counts }>>(
+        "/api/v1/feedback/counts",
+        { params: { weekStartDate } }
     );
+    return res.data?.data?.counts ?? EMPTY_COUNTS;
 }
 
 export type FeedbackReq = {

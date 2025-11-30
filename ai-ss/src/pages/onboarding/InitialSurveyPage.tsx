@@ -1,9 +1,13 @@
 // src/pages/onboarding/InitialSurveyPage.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { saveHabit } from "@/entities/user/api";
 import { toHabitReq } from "@/entities/user/model/habitMapper";
+import { useAuthStore } from "@/entities/user/model/authStore";
+import { getAccessToken } from "@/lib/authService"; // 추가
+
+type SimpleRes = { status: number; message: string };
 
 const cleaningFrequencies = [
     "매일 (주 7회)",
@@ -24,19 +28,30 @@ const timeSlots = [
 
 const weekdays = ["월", "화", "수", "목", "금", "토", "일"];
 
-const itemAmount = [
-    "물건이 많아서 정리가 어려워요",
-    "물건이 적어서 정리가 쉬워요",
-];
+const itemAmount = ["물건이 많아서 정리가 어려워요", "물건이 적어서 정리가 쉬워요"];
 
 export default function InitialSurveyPage() {
     const [frequency, setFrequency] = useState("");
     const [style, setStyle] = useState("");
-    const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]); // 서버는 단일값 → 아래에서 1개만 유지
+    const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]); // 서버 단일값 → 1개만 유지
     const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
     const [items, setItems] = useState("");
 
     const navigate = useNavigate();
+    const accessToken = useAuthStore((s) => s.accessToken);
+
+    // 토큰 가드
+    // useEffect(() => {
+    //     if (!accessToken && !localStorage.getItem("accessToken")) {
+    //         navigate("/login");
+    //     }
+    // }, [accessToken, navigate]);
+
+    useEffect(() => {
+        if (!getAccessToken()) {
+            navigate("/login", { replace: true });
+        }
+    }, [navigate]);
 
     const toggleSelect = (
         value: string,
@@ -50,15 +65,23 @@ export default function InitialSurveyPage() {
         }
     };
 
-    // 서버 저장
-    const m = useMutation({
+    const m = useMutation<SimpleRes, unknown, any>({
         mutationFn: saveHabit,
-        onSuccess: () => {
-            alert("청소습관이 등록되었습니다.");
+        onSuccess: (res) => {
+            const msg = (res as any)?.message ?? "청소습관이 등록되었습니다.";
+            alert(msg);
+            // 다음 단계 라우트는 프로젝트 라우팅에 맞춰 조정
+            // 예: navigate("/onboarding/google-calendar");
             navigate("/home");
         },
         onError: (err: unknown) => {
-            const msg = err instanceof Error ? err.message : "등록에 실패했습니다.";
+            const msg =
+                typeof err === "object" && err !== null && "response" in err
+                    // @ts-expect-error 런타임 방어
+                    ? err?.response?.data?.message ?? "등록에 실패했습니다."
+                    : err instanceof Error
+                        ? err.message
+                        : "등록에 실패했습니다.";
             alert(msg);
         },
     });
@@ -135,7 +158,7 @@ export default function InitialSurveyPage() {
                             <button
                                 key={time}
                                 type="button"
-                                onClick={() => setSelectedTimeSlots([time])} // 1개만 유지
+                                onClick={() => setSelectedTimeSlots([time])}
                                 className={`text-sm rounded px-3 py-1 border ${
                                     active
                                         ? "bg-gray-400 text-white border-gray-400"
@@ -155,9 +178,7 @@ export default function InitialSurveyPage() {
                         <button
                             key={day}
                             type="button"
-                            onClick={() =>
-                                toggleSelect(day, selectedWeekdays, setSelectedWeekdays)
-                            }
+                            onClick={() => toggleSelect(day, selectedWeekdays, setSelectedWeekdays)}
                             className={`text-sm rounded px-2 py-1 border ${
                                 selectedWeekdays.includes(day)
                                     ? "bg-gray-400 text-white border-gray-400"
