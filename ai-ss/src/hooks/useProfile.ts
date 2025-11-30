@@ -15,7 +15,7 @@ const KEY = ["user", "profile"] as const;
 export const useProfile = () =>
     useQuery<ProfileData>({
         queryKey: KEY,
-        queryFn: getProfile, // ✅ 래퍼 해제된 ProfileData를 그대로 반환
+        queryFn: getProfile, // 서버에서 ProfileData 반환
         staleTime: 60_000,
     });
 
@@ -24,7 +24,10 @@ export const useUpdateProfile = () => {
     const qc = useQueryClient();
     return useMutation<SimpleRes, unknown, { nickname: string; email: string }>({
         mutationFn: updateProfile,
-        onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+        onSuccess: () => {
+            // 수정 후 프로필 다시 가져오기
+            qc.invalidateQueries({ queryKey: KEY });
+        },
     });
 };
 

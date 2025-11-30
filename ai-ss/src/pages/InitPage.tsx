@@ -1,104 +1,49 @@
-// pages/InitPage.tsx
-
-import React, { useEffect, useState } from "react";
+// src/pages/InitPage.tsx
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-//import { useAuthStore } from "@/entities/user/model/authStore";
-import { getAccessToken } from "@/lib/authService"; // ✅ 단일 소스
-
-type Preferences = {
-    cleaningFrequency: string;
-    homeType: string;
-};
+import { getAccessToken } from "@/lib/authService";
+import { useProfile } from "@/hooks/useProfile";
 
 export default function InitPage() {
-    const [preferences, setPreferences] = useState<Preferences>({
-        cleaningFrequency: "",
-        homeType: "",
-    });
-
     const navigate = useNavigate();
+    const { data: profile, isLoading, isError } = useProfile();
 
-    // const accessToken = useAuthStore((s) => s.accessToken);
-    //
-    // // ✅ 토큰 가드: 비로그인 접근 차단
-    // useEffect(() => {
-    //     if (!accessToken && !localStorage.getItem("accessToken")) {
-    //         navigate("/login");
-    //     }
-    // }, [accessToken, navigate]);
-
-
-    // ✅ 토큰 가드: 비로그인 접근 차단 (단일 소스 사용)
+    // ✅ 토큰 가드: 비로그인 접근 차단
     useEffect(() => {
         if (!getAccessToken()) {
             navigate("/login", { replace: true });
         }
     }, [navigate]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const { name, value } = e.target;
-        setPreferences((prev) => ({ ...prev, [name]: value }));
-    };
+    // ✅ 프로필 로딩 완료 후 분기
+    useEffect(() => {
+        if (isLoading) return;
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        // TODO: 스웨거 확정 시 온보딩 API 호출 추가
-        console.log(preferences);
-        navigate("/setup"); // 다음 단계로 이동
-    };
+        if (isError) {
+            // 토큰은 있는데 프로필을 못 불러온 경우 → 그냥 다시 로그인 유도
+            alert("프로필 정보를 불러올 수 없습니다. 다시 로그인 해주세요.");
+            navigate("/login", { replace: true });
+            return;
+        }
+
+        if (!profile) return;
+
+        // 🔥 온보딩 여부 판정 로직
+        // 예시: nickname이 없으면 아직 온보딩 안 된 상태로 간주
+        if (!profile.nickname) {
+            navigate("/onboarding/nickname", { replace: true });
+        } else {
+            // 온보딩 완료 유저 → 홈으로
+            navigate("/home", { replace: true });
+        }
+    }, [profile, isLoading, isError, navigate]);
 
     return (
-        <div className="flex flex-col items-center justify-center h-screen bg-gray-50 p-4">
-            <h1 className="text-2xl font-bold mb-6">청소 루틴 설정 시작하기</h1>
-            <form
-                onSubmit={handleSubmit}
-                className="bg-white shadow-lg rounded-xl p-6 space-y-4 w-full max-w-md"
-            >
-                <div>
-                    <label className="block font-medium mb-2" htmlFor="cleaningFrequency">
-                        청소 빈도
-                    </label>
-                    <select
-                        id="cleaningFrequency"
-                        name="cleaningFrequency"
-                        value={preferences.cleaningFrequency}
-                        onChange={handleChange}
-                        className="w-full border border-gray-300 rounded p-2"
-                        required
-                    >
-                        <option value="">선택하세요</option>
-                        <option value="daily">매일</option>
-                        <option value="weekly">주 1~2회</option>
-                        <option value="monthly">월 1~2회</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label className="block font-medium mb-2" htmlFor="homeType">
-                        주거 형태
-                    </label>
-                    <select
-                        id="homeType"
-                        name="homeType"
-                        value={preferences.homeType}
-                        onChange={handleChange}
-                        className="w-full border border-gray-300 rounded p-2"
-                        required
-                    >
-                        <option value="">선택하세요</option>
-                        <option value="apartment">아파트</option>
-                        <option value="house">주택</option>
-                        <option value="dorm">기숙사/원룸</option>
-                    </select>
-                </div>
-
-                <button
-                    type="submit"
-                    className="w-full bg-blue-500 text-white font-semibold py-2 rounded hover:bg-blue-600"
-                >
-                    다음 단계로
-                </button>
-            </form>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 px-4">
+            <h1 className="text-xl font-semibold mb-2">초기 설정 중...</h1>
+            <p className="text-sm text-gray-500">
+                프로필 정보를 불러오고 있어요. 잠시만 기다려 주세요.
+            </p>
         </div>
     );
 }

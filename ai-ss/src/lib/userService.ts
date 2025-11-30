@@ -1,24 +1,35 @@
-import { http } from "@/shared/api/http";
+// src/lib/userService.ts
+import { login as loginApi, ApiEnvelope, LoginData } from "@/entities/user/api";
 import { setTokens } from "@/lib/authService";
 
-type LoginResponse = {
-    status: number;
-    message: string;
-    data: {
-        accessToken: string;
-        refreshToken?: string;
-        nickname?: string;
-        role?: string;
-    };
-};
+export type LoginResponseData = LoginData;
 
-export async function loginWithAuthorizationCode(code: string, socialType: "GOOGLE") {
-    const res = await http.post(
-        "/api/v1/users/login",
-        { socialType },                         // body
-        { params: { authorizationCode: code } } // query param
-    );
-    const { accessToken, refreshToken } = res.data.data ?? {};
-    if (accessToken) setTokens(accessToken, refreshToken);
-    return res.data;
+/**
+ * 인가 코드로 로그인 후 토큰을 localStorage에 저장
+ */
+export async function loginWithAuthorizationCode(
+    code: string,
+    socialType: "GOOGLE"
+): Promise<LoginResponseData> {
+    // ✅ 주소창에서 복사한 코드는 이미 인코딩되어 있으므로 한 번 디코딩
+    const decodedCode = decodeURIComponent(code.trim());
+
+    const envelope: ApiEnvelope<LoginData> = await loginApi({
+        authorizationCode: decodedCode,
+        socialType,
+    });
+
+    if (!envelope.data) {
+        throw new Error("로그인 응답에 data가 없습니다.");
+    }
+
+    const { accessToken, refreshToken, nickname, role } = envelope.data;
+
+    if (!accessToken) {
+        throw new Error("로그인 응답에 accessToken이 없습니다.");
+    }
+
+    setTokens(accessToken, refreshToken);
+
+    return { accessToken, refreshToken, nickname, role };
 }

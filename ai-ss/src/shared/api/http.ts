@@ -3,23 +3,33 @@ import axios from "axios";
 import { getAccessToken, clearTokens } from "@/lib/authService";
 
 export const http = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL,
+    // 🔥 baseURL 비워두고, 절대경로("/api/…")로만 호출하게
+    baseURL: "",
 });
 
+// 요청 인터셉터: Authorization 헤더 자동 추가
 http.interceptors.request.use((config) => {
     const token = getAccessToken();
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+
+    // 로그인 요청에는 토큰 붙이지 않기
+    const url = config.url ?? "";
+    const isLoginRequest = url.includes("/users/login");
+
+    if (token && !isLoginRequest) {
+        config.headers = config.headers ?? {};
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+
     return config;
 });
 
+// 응답 인터셉터: 401 처리 (개발 모드에서는 리다이렉트 막기)
 http.interceptors.response.use(
     (res) => res,
     (err) => {
-        // ✅ 개발 중엔 401이어도 자동 토큰 삭제/리다이렉트 하지 않음
         const status = err?.response?.status;
         const isDev = import.meta.env.MODE === "development";
 
-        // 숫자/문자 모두 처리
         if ((status === 401 || status === "401") && !isDev) {
             clearTokens();
             window.location.href = "/login";

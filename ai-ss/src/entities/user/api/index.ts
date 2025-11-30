@@ -1,5 +1,5 @@
 // src/entities/user/api/index.ts
-import http from "@/shared/api/http";
+import { http } from "@/shared/api/http";
 
 // -------- Endpoints --------
 const USERS = "/api/v1/users";
@@ -8,7 +8,7 @@ const ENDPOINTS = {
     nickname: `${USERS}/nickname/register`,
     address: `${USERS}/address`,
     habit: `${USERS}/habit`,
-    calendar: `${USERS}/calendar`,
+    calendar: `${USERS}/calendar`, // 백엔드에서 실제로 제공한다면 사용
     profile: `${USERS}/profile`,
     logout: `${USERS}/logout`,
     withdraw: `${USERS}/withdraw`,
@@ -20,15 +20,20 @@ export type ApiEnvelope<T = unknown> = {
     message: string;
     data?: T;
 };
-export type SimpleRes = { status: number; message: string };
+
+export type SimpleRes = {
+    status: number;
+    message: string;
+};
+
+// -------- Domain Types --------
 
 export type ProfileData = {
     nickname: string;
     email: string;
-    termsUrl?: string; // ✅ 옵셔널 처리 (MSW/실서버 겸용 안전)
+    termsUrl?: string;
 };
 
-// -------- Domain Types --------
 export type LoginData = {
     accessToken: string;
     refreshToken: string;
@@ -56,7 +61,28 @@ export type PreferredTimeRange = "DAWN" | "MORNING" | "AFTERNOON" | "EVENING";
 export type PreferredDay = "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
 export type ItemQuantity = "TOO_MUCH" | "LITTLE";
 
+export type HabitReq = {
+    cleaningFrequency: CleaningFrequency;
+    cleaningDistribution: CleaningDistribution;
+    preferredTimeRange: PreferredTimeRange;
+    preferredDays: PreferredDay[];
+    itemQuantity: ItemQuantity;
+};
+
 // -------- APIs --------
+
+// 로그인 (authorizationCode + socialType)
+export async function login(params: {
+    authorizationCode: string;
+    socialType: "GOOGLE";
+}): Promise<ApiEnvelope<LoginData>> {
+    const res = await http.post<ApiEnvelope<LoginData>>(
+        ENDPOINTS.login,
+        { socialType: params.socialType }, // body
+        { params: { authorizationCode: params.authorizationCode } } // query
+    );
+    return res.data;
+}
 
 // 닉네임 등록
 export async function registerNickname(nickname: string): Promise<SimpleRes> {
@@ -71,13 +97,6 @@ export async function registerAddress(payload: AddressReq): Promise<SimpleRes> {
 }
 
 // 청소 습관 등록
-export type HabitReq = {
-    cleaningFrequency: CleaningFrequency;
-    cleaningDistribution: CleaningDistribution;
-    preferredTimeRange: PreferredTimeRange;
-    preferredDays: PreferredDay[];
-    itemQuantity: ItemQuantity;
-};
 export async function saveHabit(payload: HabitReq): Promise<SimpleRes> {
     const { data } = await http.post<SimpleRes>(ENDPOINTS.habit, payload);
     return data;

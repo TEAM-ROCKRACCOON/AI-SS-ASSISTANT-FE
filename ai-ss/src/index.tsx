@@ -11,7 +11,7 @@ async function bootstrap() {
     // MSW: 개발이거나 VITE_USE_MSW=true일 때만 구동
     try {
         const useMSW =
-            import.meta.env.DEV || String(import.meta.env.VITE_USE_MSW) === "true";
+            String(import.meta.env.VITE_USE_MOCK) === "true";
         if (useMSW) {
             const { startMock } = await import("./mocks/startMock");
             await startMock();

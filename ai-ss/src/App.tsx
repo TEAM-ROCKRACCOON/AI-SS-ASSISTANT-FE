@@ -27,7 +27,6 @@ import InitialSurveyPage from "@/pages/onboarding/InitialSurveyPage";
 import GoogleCalendarConnectPage from "@/pages/onboarding/GoogleCalendarConnectPage";
 
 import AddRoutinePage from "@/pages/AddRoutinePage";
-import DashboardPage from "@/pages/DashboardPage";
 import SetupPage from "@/pages/SetupPage";
 
 import { getAccessToken } from "@/lib/authService";
@@ -79,7 +78,6 @@ export default function App() {
                         />
 
                         {/* 기타 페이지 */}
-                        <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/addroutine" element={<AddRoutinePage />} />
                         <Route path="/setup" element={<SetupPage />} />
                     </Route>

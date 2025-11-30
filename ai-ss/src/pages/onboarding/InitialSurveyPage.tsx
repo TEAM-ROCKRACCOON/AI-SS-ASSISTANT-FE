@@ -4,8 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { saveHabit } from "@/entities/user/api";
 import { toHabitReq } from "@/entities/user/model/habitMapper";
-import { useAuthStore } from "@/entities/user/model/authStore";
-import { getAccessToken } from "@/lib/authService"; // 추가
+import { getAccessToken } from "@/lib/authService";
 
 type SimpleRes = { status: number; message: string };
 
@@ -33,20 +32,13 @@ const itemAmount = ["물건이 많아서 정리가 어려워요", "물건이 적
 export default function InitialSurveyPage() {
     const [frequency, setFrequency] = useState("");
     const [style, setStyle] = useState("");
-    const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]); // 서버 단일값 → 1개만 유지
+    const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
     const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
     const [items, setItems] = useState("");
 
     const navigate = useNavigate();
-    const accessToken = useAuthStore((s) => s.accessToken);
 
     // 토큰 가드
-    // useEffect(() => {
-    //     if (!accessToken && !localStorage.getItem("accessToken")) {
-    //         navigate("/login");
-    //     }
-    // }, [accessToken, navigate]);
-
     useEffect(() => {
         if (!getAccessToken()) {
             navigate("/login", { replace: true });
@@ -70,9 +62,8 @@ export default function InitialSurveyPage() {
         onSuccess: (res) => {
             const msg = (res as any)?.message ?? "청소습관이 등록되었습니다.";
             alert(msg);
-            // 다음 단계 라우트는 프로젝트 라우팅에 맞춰 조정
-            // 예: navigate("/onboarding/google-calendar");
-            navigate("/home");
+            // ✅ 다음 단계: 구글 캘린더 연동 페이지로 이동
+            navigate("/onboarding/GoogleCalendarConnect");
         },
         onError: (err: unknown) => {
             const msg =
@@ -153,7 +144,7 @@ export default function InitialSurveyPage() {
                 <h2 className="text-lg font-bold mt-6">선호 청소 시간대</h2>
                 <div className="grid grid-cols-2 gap-2">
                     {timeSlots.map((time) => {
-                        const active = selectedTimeSlots[0] === time; // 단일 선택
+                        const active = selectedTimeSlots[0] === time;
                         return (
                             <button
                                 key={time}

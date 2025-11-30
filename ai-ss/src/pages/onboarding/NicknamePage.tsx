@@ -3,24 +3,15 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { registerNickname } from "@/entities/user/api";
-import { useAuthStore } from "@/entities/user/model/authStore";
-import { getAccessToken } from "@/lib/authService"; // 추가
+import { getAccessToken } from "@/lib/authService";
 
 type SimpleRes = { status: number; message: string };
-
 
 export default function NicknamePage() {
     const [nickname, setNickname] = useState("");
     const navigate = useNavigate();
-    const accessToken = useAuthStore((s) => s.accessToken);
 
-    // 토큰 가드
-    // useEffect(() => {
-    //     if (!accessToken && !localStorage.getItem("accessToken")) {
-    //         navigate("/login");
-    //     }
-    // }, [accessToken, navigate]);
-
+    // ✅ 토큰 가드
     useEffect(() => {
         if (!getAccessToken()) {
             navigate("/login", { replace: true });
@@ -30,16 +21,20 @@ export default function NicknamePage() {
     const m = useMutation<SimpleRes, unknown, string>({
         mutationFn: registerNickname,
         onSuccess: (res) => {
-            // 래퍼가 있어도/없어도 메시지 안전 처리
-            const msg = (res as any)?.message ?? "닉네임이 등록되었습니다.";
+            const msg = res?.message ?? "닉네임이 등록되었습니다.";
             alert(msg);
-            navigate("/address");
+            // ✅ 온보딩 다음 단계로 이동 (라우트 경로와 일치)
+            navigate("/onboarding/address");
         },
         onError: (err: unknown) => {
             const msg =
-                typeof err === "object" && err !== null && "response" in err
-                    // @ts-expect-error 런타임 방어
-                    ? err?.response?.data?.message ?? "닉네임 등록에 실패했습니다."
+                typeof err === "object" &&
+                err !== null &&
+                "response" in err &&
+                // @ts-expect-error 런타임 방어
+                err?.response?.data?.message
+                    ? // @ts-expect-error
+                    err.response.data.message
                     : err instanceof Error
                         ? err.message
                         : "닉네임 등록에 실패했습니다.";

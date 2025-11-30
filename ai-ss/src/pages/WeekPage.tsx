@@ -2,15 +2,14 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { formatDateLabel, getWeekDays } from "@/lib/time";
 import { WeeklySchedule, Block } from "@/components/WeeklySchedule";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 import { getAccessToken } from "@/lib/authService";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import http from "@/shared/api/http";
 
 type WeeklyApiItem = {
     date: string; // "YYYY-MM-DD"
-    todos: Array<{ id: string; title: string; time?: string; isDone?: boolean }>;
+    todos: Array<{ id: string | number; title: string; time?: string; isDone?: boolean }>;
 };
 
 type WeeklyApiResponse = {
@@ -76,6 +75,21 @@ function inferDurationMinutes(title: string): number {
     return 60; // 기본 1h
 }
 
+function isFixedSchedule(title: string): boolean {
+    const keywords = ["회의", "수업", "세미나", "운동"];
+    return keywords.some((k) => title.includes(k));
+}
+
+// 강의/수업 duration 자동 계산
+function getFixedScheduleDuration(title: string): number {
+    if (title.includes("캡스톤")) return 180;
+    if (title.includes("컴퓨터 그래픽스")) return 90;
+    if (title.includes("패턴인식")) return 90;
+    if (title.includes("세미나")) return 120;
+    if (title.includes("강의") || title.includes("수업")) return 90;
+    return 90;
+}
+
 /** 미완료 우선 + 시간 오름차순 정렬 */
 function sortUndoneFirst<T extends { isDone?: boolean; time?: string }>(
     arr: T[]
@@ -93,29 +107,6 @@ function sortUndoneFirst<T extends { isDone?: boolean; time?: string }>(
     });
 }
 
-function isFixedSchedule(title: string): boolean {
-    const keywords = [
-        "회의",
-        "수업",
-        "세미나",
-        "운동"
-    ];
-    return keywords.some(k => title.includes(k));
-}
-
-// 강의/수업 duration 자동 계산
-function getFixedScheduleDuration(title: string): number {
-    if (title.includes("캡스톤")) return 180;          // 3시간
-    if (title.includes("컴퓨터 그래픽스")) return 90;  // 1.5시간
-    if (title.includes("패턴인식")) return 90;
-    if (title.includes("세미나")) return 120;
-
-    // 강의/수업 기본 시간
-    if (title.includes("강의") || title.includes("수업")) return 90;
-
-    return 90; // default(원하면 바꿀 수 있음)
-}
-
 function buildBlocks(weekly: WeeklyApiItem[]): Block[] {
     const blocks: Block[] = [];
 
@@ -126,15 +117,15 @@ function buildBlocks(weekly: WeeklyApiItem[]): Block[] {
         for (const t of todosSorted) {
             const start = toHourFloat(t.time) ?? 9;
 
-            let durMin;
+            let durMin: number;
             let type: Block["type"];
 
             if (isFixedSchedule(t.title)) {
                 durMin = getFixedScheduleDuration(t.title);
-                type = "schedule"; // 연노랑
+                type = "schedule";
             } else {
                 durMin = inferDurationMinutes(t.title);
-                type = "cleaning"; // 연파랑
+                type = "cleaning";
             }
 
             const end = start + durMin / 60;
@@ -153,17 +144,12 @@ function buildBlocks(weekly: WeeklyApiItem[]): Block[] {
     return blocks;
 }
 
-
 /** 다양한 weekly 응답 포맷을 안전하게 추출 */
 function extractWeekly(data: any): WeeklyApiItem[] {
     if (!data) return [];
-    // { status, message, data: { weeklyTodos } }
     if (Array.isArray(data?.data?.weeklyTodos))
         return data.data.weeklyTodos as WeeklyApiItem[];
-    // { weeklyTodos: [] }
-    if (Array.isArray(data?.weeklyTodos))
-        return data.weeklyTodos as WeeklyApiItem[];
-    // 루트가 바로 배열
+    if (Array.isArray(data?.weeklyTodos)) return data.weeklyTodos as WeeklyApiItem[];
     if (Array.isArray(data)) return data as WeeklyApiItem[];
     return [];
 }
@@ -186,30 +172,30 @@ const WeekPage: React.FC = () => {
     // 주간 데이터 fetch (주 시작일 기준)
     useEffect(() => {
         const controller = new AbortController();
+
         (async () => {
             try {
                 setWeeklyLoading(true);
                 setWeeklyError(null);
+
                 const startDate = getWeekStartISO(baseDate);
-                const res = await fetch(
-                    `/api/v1/todo/weekly?startDate=${startDate}&sort=undone-first`,
+
+                // ✅ 스펙: GET /api/v1/todo/week?startDate=YYYY-MM-DD
+                const res = await http.get<WeeklyApiResponse | WeeklyApiItem[]>(
+                    "/api/v1/todo/week",
                     {
-                        headers: {
-                            Authorization: `Bearer ${getAccessToken()}`,
-                        },
-                        signal: controller.signal,
+                        params: { startDate },
+                        signal: controller.signal as AbortSignal,
                     }
                 );
-                if (!res.ok) {
-                    throw new Error(
-                        `주간 데이터를 불러오지 못했습니다. (${res.status})`
-                    );
-                }
-                const json: WeeklyApiResponse | WeeklyApiItem[] = await res.json();
-                const items = extractWeekly(json);
+
+                const items = extractWeekly(res.data);
                 setWeeklyItems(items);
             } catch (e: any) {
-                if (e.name === "AbortError") return;
+                // axios 취소
+                if (e?.code === "ERR_CANCELED") return;
+                if (e?.name === "CanceledError") return;
+
                 setWeeklyError(
                     e?.message ?? "주간 데이터를 불러오는 중 오류가 발생했습니다."
                 );
@@ -217,24 +203,20 @@ const WeekPage: React.FC = () => {
                 setWeeklyLoading(false);
             }
         })();
+
         return () => controller.abort();
     }, [baseDate]);
 
-    const blocks: Block[] = useMemo(
-        () => buildBlocks(weeklyItems),
-        [weeklyItems]
-    );
+    const blocks: Block[] = useMemo(() => buildBlocks(weeklyItems), [weeklyItems]);
 
     const label = formatDateLabel(baseDate);
     const days = getWeekDays(baseDate);
 
-    const start = new Date(baseDate);     // 월요일
+    const start = new Date(baseDate);
     const end = new Date(baseDate);
-    end.setDate(end.getDate() + 6);                // 일요일
+    end.setDate(end.getDate() + 6);
 
-    const rangeLabel =
-        `${format(start, "MMM d")} - ${format(end, "MMM d, yyyy")}`;
-
+    const rangeLabel = `${format(start, "MMM d")} - ${format(end, "MMM d, yyyy")}`;
 
     const handlePrevWeek = () => {
         const d = new Date(baseDate);
@@ -252,7 +234,9 @@ const WeekPage: React.FC = () => {
         <div className="flex flex-col h-full bg-white">
             {/* 상단 헤더 */}
             <header className="flex items-center justify-between px-4 py-3 border-b sticky top-0 bg-white z-10">
-                <button onClick={handlePrevWeek} className="text-xl">◂</button>
+                <button onClick={handlePrevWeek} className="text-xl">
+                    ◂
+                </button>
 
                 <div className="flex flex-col items-center">
                     <h1 className="text-lg font-semibold">{rangeLabel}</h1>
@@ -265,9 +249,10 @@ const WeekPage: React.FC = () => {
                     )}
                 </div>
 
-                <button onClick={handleNextWeek} className="text-xl">▸</button>
+                <button onClick={handleNextWeek} className="text-xl">
+                    ▸
+                </button>
             </header>
-
 
             {/* 요일 헤더 */}
             <div className="grid grid-cols-7 text-center text-sm font-medium py-2 border-b bg-gray-50">
@@ -280,15 +265,6 @@ const WeekPage: React.FC = () => {
             <div className="overflow-x-auto p-2">
                 <WeeklySchedule blocks={blocks} />
             </div>
-
-            {/* 고정 + 버튼 */}
-            {/*<Button*/}
-            {/*    variant="secondary"*/}
-            {/*    className="fixed bottom-24 right-4 rounded-full w-12 h-12 shadow-lg bg-blue-600 text-white"*/}
-            {/*    onClick={() => navigate("/add-routine")} // 실제 라우트에 맞게 필요 시 수정*/}
-            {/*>*/}
-            {/*    <Plus size={22} />*/}
-            {/*</Button>*/}
         </div>
     );
 };

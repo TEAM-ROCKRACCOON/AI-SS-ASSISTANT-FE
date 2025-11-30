@@ -11,8 +11,6 @@ export default function LoginPage() {
     const [authCode, setAuthCode] = useState("");
     const [loading, setLoading] = useState(false);
 
-    // 가이드 그대로: 백엔드 콜백(/login/oauth2/code/google) 사용 → 구글 동의 후 백엔드로 리다이렉트됨
-    // 주소창에 표시된 ?code=... 값을 사용자가 복사해와 아래 입력칸에 붙여넣는 플로우
     const onGoogleLogin = () => {
         window.location.href = buildGoogleAuthUrl();
     };
@@ -22,15 +20,9 @@ export default function LoginPage() {
         if (!code) return;
         try {
             setLoading(true);
-            // 백엔드 가이드: query params 로 authorizationCode, body 에 socialType: "GOOGLE"
-            // 프로젝트 구현에 따라 함수 시그니처가 (code) 또는 (code, "GOOGLE") 일 수 있어 아래 한 줄로 호출
-            // 필요 시 userService 쪽 시그니처 확인 후 맞춰주세요.
-            const res = await loginWithAuthorizationCode(code, "GOOGLE");
 
-            // 응답에서 토큰을 userService가 이미 저장하면 생략 가능.
-            // 만약 userService가 저장하지 않는다면 아래처럼 직접 저장:
-            // const { accessToken, refreshToken } = res?.data ?? {};
-            // if (accessToken) setTokens(accessToken, refreshToken);
+            // userService가 토큰 저장까지 담당
+            await loginWithAuthorizationCode(code, "GOOGLE");
 
             nav("/init");
         } catch (e) {
@@ -41,7 +33,7 @@ export default function LoginPage() {
         }
     };
 
-    // 개발용: 목서버/로컬 테스트 시 임시 토큰 주입
+    // 개발용: 목/로컬 테스트용 토큰
     const onDevLogin = () => {
         setTokens(
             "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpYXQiOjE3NTk2NDAwNzgsImV4cCI6MTc5MTE3NjA3OCwidXNlcklkIjoxLCJyb2xlIjoiUk9MRV9VU0VSIn0.nU4SM_HQ_ZYWw6wBq6t6_x_WbDS46fJcT9ZdWSmhthkJpMMvVxtaZQYNg6pJdLo9YY5YiJzkqkoEd_vO_V0MQg"
@@ -62,7 +54,7 @@ export default function LoginPage() {
 
                 <Button
                     onClick={onGoogleLogin}
-                    isLoading={loading}          // ✅ 추가
+                    isLoading={loading}
                     disabled={loading}
                     className="w-full justify-center"
                 >
@@ -79,7 +71,7 @@ export default function LoginPage() {
                         />
                         <Button
                             onClick={onSubmitCode}
-                            isLoading={loading}          // ✅ 추가
+                            isLoading={loading}
                             disabled={loading || !authCode.trim()}
                         >
                             코드 제출
@@ -93,8 +85,8 @@ export default function LoginPage() {
                 <Button
                     variant="secondary"
                     onClick={onDevLogin}
-                    isLoading={loading}          // ✅ 추가
-                    disabled={loading}           // (선택) isLoading가 있으면 disabled는 안 줘도 됨
+                    isLoading={loading}
+                    disabled={loading}
                     className="w-full justify-center"
                 >
                     개발용 토큰으로 계속

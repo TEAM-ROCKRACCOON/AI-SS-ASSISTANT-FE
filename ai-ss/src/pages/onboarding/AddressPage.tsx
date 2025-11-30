@@ -4,29 +4,20 @@ import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { registerAddress } from "@/entities/user/api";
 import { searchAddressKakao, type KakaoAddr } from "@/lib/kakaoLocal";
-import { useAuthStore } from "@/entities/user/model/authStore";
-import { getAccessToken } from "@/lib/authService"; // 추가
-
+import { getAccessToken } from "@/lib/authService";
 
 export default function AddressPage() {
     const navigate = useNavigate();
-    const accessToken = useAuthStore((s) => s.accessToken);
 
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<KakaoAddr[]>([]);
     const [roadAddressName, setRoadAddressName] = useState("");
     const [placeDetailAddress, setPlaceDetailAddress] = useState("");
-    const [latitude, setLatitude] = useState<string>("");    // 입력은 문자열, 보낼 때 number 변환
-    const [longitude, setLongitude] = useState<string>("");  // 스펙 표기 유지
+    const [latitude, setLatitude] = useState<string>("");
+    const [longitude, setLongitude] = useState<string>("");
     const [searching, setSearching] = useState(false);
 
-    // 로그인 가드: 비로그인 접근 차단
-    // useEffect(() => {
-    //     if (!accessToken && !localStorage.getItem("accessToken")) {
-    //         navigate("/login");
-    //     }
-    // }, [accessToken, navigate]);
-
+    // 로그인 가드
     useEffect(() => {
         if (!getAccessToken()) {
             navigate("/login", { replace: true });
@@ -37,14 +28,14 @@ export default function AddressPage() {
         mutationFn: registerAddress,
         onSuccess: () => {
             alert("주소가 등록되었습니다.");
-            navigate("/survey");
+            // ✅ 실제 라우트 이름으로 이동
+            navigate("/onboarding/InitialSurvey");
         },
         onError: (err: unknown) => {
-            // AxiosError 안전 처리
             const msg =
                 typeof err === "object" && err !== null && "response" in err
-                    ? // @ts-expect-error (runtime safe guard)
-                    err?.response?.data?.message ?? "주소 등록에 실패했습니다."
+                    // @ts-expect-error (runtime safe guard)
+                    ? err?.response?.data?.message ?? "주소 등록에 실패했습니다."
                     : err instanceof Error
                         ? err.message
                         : "주소 등록에 실패했습니다.";
@@ -74,8 +65,7 @@ export default function AddressPage() {
         setRoadAddressName(item.roadAddressName);
         setLatitude(String(item.latitude));
         setLongitude(String(item.longitude));
-        setResults([]); // 목록 접기
-        // 상세주소는 사용자가 입력
+        setResults([]);
     };
 
     const submit = () => {
@@ -93,7 +83,7 @@ export default function AddressPage() {
             roadAddressName: roadAddressName.trim(),
             placeDetailAddress: placeDetailAddress.trim(),
             latitude: lat,
-            longitude: lon, // 스펙 유지
+            longitude: lon,
         });
     };
 

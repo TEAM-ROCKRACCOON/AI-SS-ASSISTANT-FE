@@ -25,7 +25,11 @@ export default function TodayPage() {
     }, [navigate]);
 
     // 오늘 투두 리스트
-    const { data: todos = [], isLoading } = useTodayTodos();
+    const {
+        data: todos = [],
+        isLoading,
+        refetch: refetchTodayTodos,
+    } = useTodayTodos();
 
     // 날씨/대시보드 데이터 (weather만 사용)
     const {
@@ -44,6 +48,8 @@ export default function TodayPage() {
     const [newTitle, setNewTitle] = useState("");
     const [newTime, setNewTime] = useState("");
 
+    // src/pages/TodayPage.tsx
+
     const handleAddTodo = () => {
         const title = newTitle.trim();
         if (!title) return;
@@ -54,21 +60,24 @@ export default function TodayPage() {
                 onSuccess: () => {
                     setNewTitle("");
                     setNewTime("");
+                    // ✅ 추가 성공 후 오늘 투두 다시 가져오기
+                    refetchTodayTodos();
                 },
             } as any
         );
     };
 
-    const handleToggleDone = (id: string, isDone: boolean) => {
-        patchDone.mutate({ id, isDone: !isDone } as any);
+
+    const handleToggleDone = (id: number | string, isDone: boolean) => {
+        patchDone.mutate({ id, isDone: !isDone });
     };
 
     const handleTimeChange = (id: string, time: string) => {
-        patchTime.mutate({ id, time } as any);
+        patchTime.mutate({ id, patch: { time } });
     };
 
     const handleDelete = (id: string) => {
-        deleteTodo.mutate({ id } as any);
+        deleteTodo.mutate(id);
     };
 
     return (
@@ -92,28 +101,31 @@ export default function TodayPage() {
 
                 {/* 체크리스트 입력 + 리스트 */}
                 <section className="mt-2 rounded-2xl bg-white p-4 shadow-sm border border-gray-200">
-                    {/* 입력 영역 */}
-                    <div className="mb-3 flex items-center gap-2">
+                    {/* 새 할 일 추가 영역 (조금 더 넓게) */}
+                    <div className="mb-4 space-y-2">
+                        <h2 className="text-sm font-semibold text-gray-900">새 할 일 추가</h2>
                         <Input
-                            placeholder="할 일 제목"
+                            placeholder="할 일 제목 (예: 거실 청소)"
                             value={newTitle}
                             onChange={(e) => setNewTitle(e.target.value)}
-                            className="flex-1 h-9 text-sm"
+                            className="h-10 text-sm"
                         />
-                        <Input
-                            placeholder="시간 (예: 09:00 AM)"
-                            value={newTime}
-                            onChange={(e) => setNewTime(e.target.value)}
-                            className="w-32 h-9 text-sm"
-                        />
-                        <Button
-                            variant="primary"
-                            className="h-9 px-3 text-sm"
-                            onClick={handleAddTodo}
-                            isLoading={addTodo.isPending}
-                        >
-                            추가
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Input
+                                type="time"
+                                value={newTime}
+                                onChange={(e) => setNewTime(e.target.value)}
+                                className="h-10 w-32 text-sm"
+                            />
+                            <Button
+                                variant="primary"
+                                className="h-10 flex-1 text-sm"
+                                onClick={handleAddTodo}
+                                isLoading={addTodo.isPending}
+                            >
+                                추가
+                            </Button>
+                        </div>
                     </div>
 
                     {/* 리스트 헤더 */}
@@ -181,12 +193,15 @@ export default function TodayPage() {
                                         </div>
                                     </div>
 
-                                    {/* 오른쪽: 시간 입력 + 삭제 */}
+                                    {/* 오른쪽: 시간 수정 + 삭제 */}
                                     <div className="flex items-center gap-2">
                                         <Input
+                                            type="time"
                                             className="w-24 h-8 text-xs"
-                                            defaultValue={t.time}
-                                            onBlur={(e) => handleTimeChange(t.id, e.target.value)}
+                                            defaultValue={t.time || ""}
+                                            onBlur={(e) =>
+                                                handleTimeChange(t.id, e.target.value)
+                                            }
                                         />
                                         <Button
                                             variant="ghost"

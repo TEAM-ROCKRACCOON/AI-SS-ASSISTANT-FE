@@ -132,14 +132,25 @@ export function useTodayTodos() {
 /* ============================================================
    CREATE
 ============================================================ */
+// src/hooks/useTodos.ts
 export function useAddTodo() {
     const qc = useQueryClient();
+
     return useMutation({
         mutationFn: async (payload: { title: string; time?: string }) => {
-            const res = await http.post("/api/v1/todo", payload);
+            const todayISO = fmtISO(new Date()); // YYYY-MM-DD
+
+            const body = {
+                title: payload.title,
+                time: payload.time ?? "",   // 서버는 string 기대
+                date: todayISO,            // ✅ 오늘 날짜 명시
+            };
+
+            const res = await http.post("/api/v1/todo", body);
             return res.data?.data ?? res.data;
         },
         onSuccess: () => {
+            // 혹시 몰라 캐시도 날려주기 (주간/오늘)
             qc.invalidateQueries({ queryKey: ["today-todos"] });
             qc.invalidateQueries({ queryKey: ["weekly-todos"] });
         },
