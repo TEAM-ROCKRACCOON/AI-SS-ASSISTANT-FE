@@ -3,8 +3,7 @@ import axios from "axios";
 import { getAccessToken, clearTokens } from "@/lib/authService";
 
 export const http = axios.create({
-    // 🔥 baseURL 비워두고, 절대경로("/api/…")로만 호출하게
-    baseURL: "",
+    baseURL: import.meta.env.VITE_API_BASE_URL ?? "https://aissbis.shop",
 });
 
 // 요청 인터셉터: Authorization 헤더 자동 추가
