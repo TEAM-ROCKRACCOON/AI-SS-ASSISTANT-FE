@@ -10,4 +10,15 @@ export default defineConfig({
             "@": fileURLToPath(new URL("./src", import.meta.url)),
         },
     },
+
+    /** CORS 우회 프록시 */
+    server: {
+        proxy: {
+            "/api": {
+                target: "https://aissbis.shop",
+                changeOrigin: true,
+                secure: false,
+            },
+        },
+    },
 });
