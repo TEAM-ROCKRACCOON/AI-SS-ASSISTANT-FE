@@ -58,13 +58,19 @@ let todos: Todo[] = [
 /**
  * 유틸
  */
-const authGuard = (req: Request) => {
-    const auth = req.headers.get("authorization") ?? req.headers.get("Authorization");
-    if (!auth || !/^Bearer\s+.+/.test(auth)) {
-        return HttpResponse.json({ status: 401, message: "유효한 토큰이 필요합니다.", data: null }, { status: 401 });
-    }
+// const authGuard = (req: Request) => {
+//     const auth = req.headers.get("authorization") ?? req.headers.get("Authorization");
+//     if (!auth || !/^Bearer\s+.+/.test(auth)) {
+//         return HttpResponse.json({ status: 401, message: "유효한 토큰이 필요합니다.", data: null }, { status: 401 });
+//     }
+//     return null;
+// };
+
+// 🔥 시연용: 인증 완전 무시
+const authGuard = (_req: Request) => {
     return null;
 };
+
 
 async function readJson<T extends Record<string, unknown>>(req: Request): Promise<Partial<T>> {
     try {
@@ -218,6 +224,30 @@ const pickDailyTodos = (dateStr: string, base: Todo[], opts?: {
  * 핸들러 모음
  */
 export const handlers = [
+    // 로그인 (OAuth code 받아도 무조건 성공 처리)
+    http.post("*/api/v1/users/login", ({ request }) => {
+        // 쿼리 파라미터 읽기(있으면)
+        const url = new URL(request.url);
+        const authorizationCode = url.searchParams.get("authorizationCode");
+
+        return HttpResponse.json(
+            {
+                status: 200,
+                message: "로그인 성공(데모)",
+                data: {
+                    accessToken: "demo-access-token",
+                    refreshToken: "demo-refresh-token",
+                    user: {
+                        nickname: profile.nickname,
+                        email: profile.email,
+                    },
+                    authorizationCodeReceived: Boolean(authorizationCode),
+                },
+            },
+            { status: 200 }
+        );
+    }),
+
     /**
      * 오늘 할 일 조회 (서버-사이드 필터/정렬/페이징)
      * Query:
@@ -382,12 +412,166 @@ export const handlers = [
      * 2025-11-03, 2025-11-10, 2025-11-17, 2025-11-24 네 주만
      * 포스터 데모 영상을 위해 고정된 스케줄을 내려준다.
      */
+    // http.get("*/api/v1/todo/weekly", ({ request }) => {
+    //     const err = authGuard(request);
+    //     if (err) return err;
+    //
+    //     const url = new URL(request.url);
+    //     const startDate = url.searchParams.get("startDate") ?? fmt(new Date());
+    //     const dayOnly = url.searchParams.get("day");
+    //
+    //     // 선택적 필터
+    //     const limit = parseIntSafe(url.searchParams.get("limit"));
+    //     const completed = parseBool(url.searchParams.get("completed"));
+    //     const q = url.searchParams.get("q");
+    //     const sort = (url.searchParams.get("sort") || "custom") as
+    //         "custom" | "time-asc" | "time-desc" | "undone-first";
+    //
+    //     // 1) 데모 주차(11/3, 11/10, 11/17, 11/24)는 고정 데이터 사용
+    //     const demo = demoWeeklyTodosByStartDate[startDate];
+    //     if (demo) {
+    //         let weeklyTodos = demo.weeklyTodos.map((day: any) => ({
+    //             ...day,
+    //             todos: day.todos.map((t: any) => ({ ...t })),
+    //         }));
+    //
+    //         weeklyTodos = weeklyTodos.map((day: any) => {
+    //             let list = day.todos as { id: string; title: string; time: string; completed: boolean }[];
+    //
+    //             if (typeof completed === "boolean") {
+    //                 list = list.filter((t) => t.completed === completed);
+    //             }
+    //             if (q) {
+    //                 const qq = q.toLowerCase();
+    //                 list = list.filter((t) => t.title.toLowerCase().includes(qq));
+    //             }
+    //
+    //             if (sort === "time-asc" || sort === "time-desc") {
+    //                 list = [...list].sort((a, b) => {
+    //                     const A = toMinutes(a.time);
+    //                     const B = toMinutes(b.time);
+    //                     return sort === "time-asc" ? A - B : B - A;
+    //                 });
+    //             } else if (sort === "undone-first") {
+    //                 list = [...list].sort((a, b) => {
+    //                     const ad = a.completed ? 1 : 0;
+    //                     const bd = b.completed ? 1 : 0;
+    //                     if (ad !== bd) return ad - bd;
+    //                     return toMinutes(a.time) - toMinutes(b.time);
+    //                 });
+    //             }
+    //
+    //             if (typeof limit === "number" && limit > 0) {
+    //                 list = list.slice(0, limit);
+    //             }
+    //
+    //             return { ...day, todos: list };
+    //         });
+    //
+    //         if (dayOnly) {
+    //             const found = weeklyTodos.find((w: any) => w.date === dayOnly);
+    //             if (!found) return bad(404, "요청한 날짜가 주간 범위에 없습니다.(데모)");
+    //             return ok("특정 일자 할일 조회 성공(데모)", { weeklyTodos: [found] });
+    //         }
+    //
+    //         return ok("일주일 할일 조회 성공(데모)", { weeklyTodos });
+    //     }
+    //
+    //     // 2) 데모 범위 밖은 기존 랜덤 생성 로직 그대로 사용
+    //     const base = new Date(startDate);
+    //     if (Number.isNaN(base.getTime())) {
+    //         return bad(400, "잘못된 데이터 형식입니다. startDate=YYYY-MM-DD");
+    //     }
+    //
+    //     const makeDay = (d: Date) => {
+    //         const dateStr = fmt(d);
+    //         let list = pickDailyTodos(dateStr, todos, {
+    //             min: 1,
+    //             max: 4,
+    //             doneRate: [0, 6].includes(d.getDay()) ? 0.5 : 0.35,
+    //         });
+    //
+    //         if (typeof completed === "boolean") {
+    //             list = list.filter((t) => t.isDone === completed);
+    //         }
+    //         if (q) {
+    //             const qq = q.toLowerCase();
+    //             list = list.filter((t) => t.title.toLowerCase().includes(qq));
+    //         }
+    //
+    //         if (sort === "time-asc" || sort === "time-desc") {
+    //             list.sort((a, b) => {
+    //                 const A = toMinutes(a.time);
+    //                 const B = toMinutes(b.time);
+    //                 return sort === "time-asc" ? A - B : B - A;
+    //             });
+    //         } else if (sort === "undone-first") {
+    //             list.sort((a, b) => {
+    //                 const ad = a.isDone ? 1 : 0;
+    //                 const bd = b.isDone ? 1 : 0;
+    //                 if (ad !== bd) return ad - bd;
+    //                 return toMinutes(a.time) - toMinutes(b.time);
+    //             });
+    //         }
+    //
+    //         if (typeof limit === "number" && limit > 0) {
+    //             list = list.slice(0, limit);
+    //         }
+    //
+    //         return { date: dateStr, todos: list };
+    //     };
+    //
+    //     const weeklyTodos = Array.from({ length: 7 }, (_, i) => {
+    //         const d = new Date(base);
+    //         d.setDate(base.getDate() + i);
+    //         return makeDay(d);
+    //     });
+    //
+    //     if (dayOnly) {
+    //         const found = weeklyTodos.find((w) => w.date === dayOnly);
+    //         if (!found) return bad(404, "요청한 날짜가 주간 범위에 없습니다.");
+    //         return ok("특정 일자 할일 조회 성공", { weeklyTodos: [found] });
+    //     }
+    //
+    //     return ok("일주일 할일 조회 성공", { weeklyTodos });
+    // }),
+    //
     http.get("*/api/v1/todo/weekly", ({ request }) => {
         const err = authGuard(request);
         if (err) return err;
 
         const url = new URL(request.url);
-        const startDate = url.searchParams.get("startDate") ?? fmt(new Date());
+
+        // -------------------------------------------
+        // ✅ startDate 파싱/정규화: 어떤 형식이 와도 YYYY-MM-DD로 맞추기
+        // -------------------------------------------
+        const normalizeStartDate = (raw: string | null): string => {
+            // 1) null이면 오늘로
+            if (!raw) return fmt(new Date());
+
+            const s = raw.trim();
+
+            // 2) 이미 YYYY-MM-DD면 그대로
+            if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+            // 3) YYYY.MM.DD / YYYY/MM/DD 같은 것들 처리
+            const m = s.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/);
+            if (m) {
+                const y = m[1];
+                const mm = String(m[2]).padStart(2, "0");
+                const dd = String(m[3]).padStart(2, "0");
+                return `${y}-${mm}-${dd}`;
+            }
+
+            // 4) 마지막으로 Date()에 맡겨보기 (예: "Dec 15 2025", "2025-12-15T00:00:00")
+            const d = new Date(s);
+            if (!Number.isNaN(d.getTime())) return fmt(d);
+
+            // 5) 그래도 실패하면 오늘로 폴백 (400 방지)
+            return fmt(new Date());
+        };
+
+        const startDate = normalizeStartDate(url.searchParams.get("startDate"));
         const dayOnly = url.searchParams.get("day");
 
         // 선택적 필터
@@ -395,27 +579,46 @@ export const handlers = [
         const completed = parseBool(url.searchParams.get("completed"));
         const q = url.searchParams.get("q");
         const sort = (url.searchParams.get("sort") || "custom") as
-            "custom" | "time-asc" | "time-desc" | "undone-first";
+            | "custom"
+            | "time-asc"
+            | "time-desc"
+            | "undone-first";
 
-        // 1) 데모 주차(11/3, 11/10, 11/17, 11/24)는 고정 데이터 사용
+        // -------------------------------------------
+        // ✅ 1) 데모 주차면 고정 데이터
+        // -------------------------------------------
         const demo = demoWeeklyTodosByStartDate[startDate];
         if (demo) {
             let weeklyTodos = demo.weeklyTodos.map((day: any) => ({
                 ...day,
-                todos: day.todos.map((t: any) => ({ ...t })),
+                todos: day.todos.map((t: any) => ({
+                    ...t,
+                    // ✅ 프론트가 isDone을 기대해도 깨지지 않도록 보장
+                    isDone: t.completed,
+                })),
             }));
 
             weeklyTodos = weeklyTodos.map((day: any) => {
-                let list = day.todos as { id: string; title: string; time: string; completed: boolean }[];
+                let list = day.todos as Array<{
+                    id: string;
+                    title: string;
+                    time: string;
+                    completed: boolean;
+                    isDone?: boolean;
+                }>;
 
+                // completed 필터
                 if (typeof completed === "boolean") {
                     list = list.filter((t) => t.completed === completed);
                 }
+
+                // 검색 필터
                 if (q) {
                     const qq = q.toLowerCase();
                     list = list.filter((t) => t.title.toLowerCase().includes(qq));
                 }
 
+                // 정렬
                 if (sort === "time-asc" || sort === "time-desc") {
                     list = [...list].sort((a, b) => {
                         const A = toMinutes(a.time);
@@ -431,6 +634,7 @@ export const handlers = [
                     });
                 }
 
+                // limit
                 if (typeof limit === "number" && limit > 0) {
                     list = list.slice(0, limit);
                 }
@@ -447,10 +651,19 @@ export const handlers = [
             return ok("일주일 할일 조회 성공(데모)", { weeklyTodos });
         }
 
-        // 2) 데모 범위 밖은 기존 랜덤 생성 로직 그대로 사용
-        const base = new Date(startDate);
+        // -------------------------------------------
+        // ✅ 2) 데모 범위 밖: 랜덤 생성 (절대 400 내지 않게)
+        // -------------------------------------------
+        const base = new Date(startDate); // startDate는 이미 YYYY-MM-DD로 정규화됨
+        // 이 시점에 NaN이면 거의 없지만, 안전장치
         if (Number.isNaN(base.getTime())) {
-            return bad(400, "잘못된 데이터 형식입니다. startDate=YYYY-MM-DD");
+            const fallback = new Date();
+            const fixed = fmt(fallback);
+            // fallback으로 처리해서 400 방지
+            // (원하면 여기서 bad(400)로 바꿔도 되는데, 시연용이면 안 깨지는 게 우선)
+            // eslint-disable-next-line no-console
+            console.warn("[MSW] weekly startDate invalid, fallback to today:", startDate, "->", fixed);
+            base.setTime(fallback.getTime());
         }
 
         const makeDay = (d: Date) => {
@@ -505,7 +718,6 @@ export const handlers = [
 
         return ok("일주일 할일 조회 성공", { weeklyTodos });
     }),
-
 
     /**
      * 요일별 완료 횟수

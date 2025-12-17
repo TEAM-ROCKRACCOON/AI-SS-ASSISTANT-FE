@@ -2,13 +2,12 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
-// ※ 가이드(백엔드 콜백 + 코드 붙여넣기)만 쓸 거면 이 Provider는 없어도 됩니다.
-//    추후 useGoogleLogin 같은 SDK를 쓸 계획이면 유지하세요.
+
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 async function bootstrap() {
-    // MSW: 개발이거나 VITE_USE_MSW=true일 때만 구동
+
     try {
         const useMSW =
             String(import.meta.env.VITE_USE_MOCK) === "true";
@@ -17,7 +16,7 @@ async function bootstrap() {
             await startMock();
         }
     } catch (e) {
-        // MSW 초기화 실패해도 앱 실행은 계속
+
         console.warn("[MSW] start failed:", e);
     }
 
@@ -31,7 +30,7 @@ async function bootstrap() {
 
     const root = createRoot(container);
 
-    // React Query 기본 설정(필요 시 조정)
+
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: {
@@ -45,7 +44,7 @@ async function bootstrap() {
     // App은 워커/프리로드 이후 렌더
     const { default: App } = await import("./App");
 
-    // 구글 SDK를 실제로 쓰지 않는다면 GoogleOAuthProvider 제거 가능
+
     const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "dummy";
 
     root.render(
