@@ -8,10 +8,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { worker } from "./mocks/browser";
 
 async function bootstrap() {
-    if (import.meta.env.DEV) {
-        await worker.start({
-            onUnhandledRequest: "error",
-        });
+    const useMock = String(import.meta.env.VITE_USE_MOCK) === "true";
+
+    if (useMock) {
+        const { startMock } = await import("./mocks/startMock");
+        await startMock();
     }
 
     let container = document.getElementById("root");
