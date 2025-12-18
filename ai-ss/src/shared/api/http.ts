@@ -4,12 +4,16 @@ import { getAccessToken, clearTokens } from "@/lib/authService";
 
 const USE_MOCK = String(import.meta.env.VITE_USE_MOCK) === "true";
 
-const BASE_URL = USE_MOCK
-    ? ""
-    : (import.meta.env.VITE_API_BASE_URL ?? "https://aissbis.shop");
+// const BASE_URL = USE_MOCK
+//     ? ""
+//     : (import.meta.env.VITE_API_BASE_URL ?? "https://aissbis.shop");
+//
+// export const http = axios.create({
+//     baseURL: BASE_URL,
+// });
 
 export const http = axios.create({
-    baseURL: BASE_URL,
+    baseURL: import.meta.env.VITE_API_BASE_URL ?? "",
 });
 
 // 요청 인터셉터: Authorization 헤더 자동 추가
