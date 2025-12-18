@@ -18,8 +18,14 @@ export default function SettingsPage() {
 
     // 로그인 가드: 목서버/실서버 공통
     useEffect(() => {
-        if (!getAccessToken()) navigate("/login", { replace: true });
+        const useMock = String(import.meta.env.VITE_USE_MOCK) === "true";
+        if (useMock) return;
+
+        // if (!getAccessToken()) {
+        //     navigate("/login", { replace: true });
+        // }
     }, [navigate]);
+
 
     const [nickname, setNickname] = useState("");
     const [email, setEmail] = useState("");
@@ -98,18 +104,18 @@ export default function SettingsPage() {
                 </button>
             </section>
 
-            {/* 약관 링크 */}
-            <section className="mb-8">
-                <h2 className="text-lg font-semibold mb-2">약관</h2>
-                <a
-                    href={data?.termsUrl || "#"}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full inline-block px-4 py-3 bg-gray-100 rounded hover:bg-gray-200"
-                >
-                    이용 약관 보기
-                </a>
-            </section>
+            {/*/!* 약관 링크 *!/*/}
+            {/*<section className="mb-8">*/}
+            {/*    <h2 className="text-lg font-semibold mb-2">약관</h2>*/}
+            {/*    <a*/}
+            {/*        href={data?.termsUrl || "#"}*/}
+            {/*        target="_blank"*/}
+            {/*        rel="noreferrer"*/}
+            {/*        className="w-full inline-block px-4 py-3 bg-gray-100 rounded hover:bg-gray-200"*/}
+            {/*    >*/}
+            {/*        이용 약관 보기*/}
+            {/*    </a>*/}
+            {/*</section>*/}
 
             {/* 계정 관리 */}
             <section className="space-y-3">

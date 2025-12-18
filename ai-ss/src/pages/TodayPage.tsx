@@ -17,11 +17,13 @@ import { useNavigate } from "react-router-dom";
 export default function TodayPage() {
     const navigate = useNavigate();
 
-    // 로그인 가드
     useEffect(() => {
-        if (!getAccessToken()) {
-            navigate("/login", { replace: true });
-        }
+        const useMock = String(import.meta.env.VITE_USE_MOCK) === "true";
+        if (useMock) return;
+
+        // if (!getAccessToken()) {
+        //     navigate("/login", { replace: true });
+        // }
     }, [navigate]);
 
     // 오늘 투두 리스트

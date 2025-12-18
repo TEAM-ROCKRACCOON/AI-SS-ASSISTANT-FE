@@ -3,32 +3,63 @@ import React, { useCallback, useState } from "react";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 
-// 데모용: 항상 이 이미지를 After로 사용
-import roomAfter from "../assets/room_after.jpg";
+// import roomAfter from "../assets/room_after.jpg";
 
 const FeedbackPage: React.FC = () => {
+    const MIN_WIDTH = 1;
+    const MIN_HEIGHT = 1;
+    const MAX_WIDTH = 1;
+    const MAX_HEIGHT = 1;
+
     const [file, setFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [resultUrl, setResultUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [resolutionError, setResolutionError] = useState<string | null>(null);
 
-    const handleFile = useCallback((f: File) => {
-        setFile(f);
-        setResultUrl(null); // 새 파일 업로드 시 결과 리셋
+    const handleFile = useCallback(
+        (f: File) => {
+            // 새 파일 업로드 시 결과/에러 리셋
+            setResultUrl(null);
+            setResolutionError(null);
 
-        const reader = new FileReader();
-        reader.onload = () => {
-            if (typeof reader.result === "string") {
-                setPreviewUrl(reader.result);
-            }
-        };
-        reader.readAsDataURL(f);
-    }, []);
+            const reader = new FileReader();
+            reader.onload = () => {
+                const result = reader.result;
+                if (typeof result !== "string") return;
+
+                const img = new Image();
+                img.onload = () => {
+                    const { width, height } = img;
+
+                    if (width < MIN_WIDTH || height < MIN_HEIGHT || width > MAX_WIDTH || height > MAX_HEIGHT) {
+                        setFile(null);
+                        setPreviewUrl(null);
+                        setResolutionError(
+                            `이미지 해상도가 맞지 않습니다. 512-2048px 범위로 조절해서 다시 업로드해주세요.`
+                        );
+                        return;
+                    }
+
+                    setFile(f);
+                    setPreviewUrl(result);
+                };
+
+                img.src = result;
+            };
+
+            reader.readAsDataURL(f);
+        },
+        [MIN_WIDTH, MIN_HEIGHT, MAX_WIDTH, MAX_HEIGHT]
+    );
 
     const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const f = e.target.files?.[0];
         if (!f) return;
         handleFile(f);
+
+        // 같은 파일을 다시 올려도 change가 발생하도록 초기화(선택사항이지만 편함)
+        e.currentTarget.value = "";
     };
 
     const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -48,26 +79,13 @@ const FeedbackPage: React.FC = () => {
         document.getElementById("room-image-input")?.click();
     };
 
-    // const onClickTransform = async () => {
-    //     if (!file || !previewUrl) return;
-    //     setIsLoading(true);
-    //     try {
-    //         // TODO: 여기에서 실제 API 호출 후 결과 이미지 URL 세팅
-    //         await new Promise((resolve) => setTimeout(resolve, 800));
-    //         setResultUrl(previewUrl); // 임시: 원본 이미지를 그대로 결과로 사용
-    //     } finally {
-    //         setIsLoading(false);
-    //     }
-    // };
-
-    // 데모용: 항상 room_after 정적 이미지를 결과로 사용
+    // 데모용: 결과 생성 로직은 비워둠
     const onClickTransform = async () => {
         if (!file) return;
         setIsLoading(true);
         try {
-            // 실제 API 연동 시에는 여기에서 업로드 + inference 호출
             await new Promise((resolve) => setTimeout(resolve, 800));
-            setResultUrl(roomAfter); // 여기서만 room_after를 씀
+            // setResultUrl(roomAfter);
         } finally {
             setIsLoading(false);
         }
@@ -86,7 +104,7 @@ const FeedbackPage: React.FC = () => {
                     </p>
                 </header>
 
-                {/* 메인 레이아웃: md 이상에서는 업로드 / 결과를 좌우로 배치 */}
+                {/* 메인 레이아웃 */}
                 <div className="grid gap-6 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] md:items-start">
                     {/* 업로드 영역 */}
                     <Card className="border border-slate-200 bg-white shadow-sm">
@@ -129,6 +147,13 @@ const FeedbackPage: React.FC = () => {
                                 )}
                             </div>
 
+                            {/* 해상도 에러 메시지 */}
+                            {resolutionError && (
+                                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600">
+                                    {resolutionError}
+                                </div>
+                            )}
+
                             <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                 <Button
                                     type="button"
@@ -150,8 +175,8 @@ const FeedbackPage: React.FC = () => {
                             </h1>
                             {resultUrl && (
                                 <span className="text-[11px] text-slate-500">
-                  실제 청소 결과와는 차이가 있을 수 있어요.
-                </span>
+                                    실제 청소 결과와는 차이가 있을 수 있어요.
+                                </span>
                             )}
                         </div>
 

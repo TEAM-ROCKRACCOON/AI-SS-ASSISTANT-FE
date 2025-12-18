@@ -1,4 +1,3 @@
-// src/index.tsx
 import React from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
@@ -6,21 +5,15 @@ import "./index.css";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import { worker } from "./mocks/browser";
+
 async function bootstrap() {
-
-    try {
-        const useMSW =
-            String(import.meta.env.VITE_USE_MOCK) === "true";
-        if (useMSW) {
-            const { startMock } = await import("./mocks/startMock");
-            await startMock();
-        }
-    } catch (e) {
-
-        console.warn("[MSW] start failed:", e);
+    if (import.meta.env.DEV) {
+        await worker.start({
+            onUnhandledRequest: "error",
+        });
     }
 
-    // root 보장
     let container = document.getElementById("root");
     if (!container) {
         container = document.createElement("div");
@@ -29,7 +22,6 @@ async function bootstrap() {
     }
 
     const root = createRoot(container);
-
 
     const queryClient = new QueryClient({
         defaultOptions: {
@@ -41,10 +33,7 @@ async function bootstrap() {
         },
     });
 
-    // App은 워커/프리로드 이후 렌더
     const { default: App } = await import("./App");
-
-
     const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "dummy";
 
     root.render(

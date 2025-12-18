@@ -157,11 +157,13 @@ function extractWeekly(data: any): WeeklyApiItem[] {
 const WeekPage: React.FC = () => {
     const navigate = useNavigate();
 
-    // 로그인 가드
     useEffect(() => {
-        if (!getAccessToken()) {
-            navigate("/login", { replace: true });
-        }
+        const useMock = String(import.meta.env.VITE_USE_MOCK) === "true";
+        if (useMock) return;
+
+        // if (!getAccessToken()) {
+        //     navigate("/login", { replace: true });
+        // }
     }, [navigate]);
 
     const [baseDate, setBaseDate] = useState<Date>(startOfISOWeek());

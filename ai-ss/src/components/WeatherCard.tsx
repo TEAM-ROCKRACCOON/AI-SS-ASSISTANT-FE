@@ -67,15 +67,6 @@ const WeatherCard: React.FC<WeatherCardProps> = ({
             집 주변 기준으로 안내해드려요
           </span>
                 </div>
-                {onClickDetail && (
-                    <button
-                        type="button"
-                        onClick={onClickDetail}
-                        className="text-xs font-medium text-gray-500 hover:text-gray-700"
-                    >
-                        자세히 보기 &gt;
-                    </button>
-                )}
             </div>
 
             {/* 가운데 메인 정보 */}
